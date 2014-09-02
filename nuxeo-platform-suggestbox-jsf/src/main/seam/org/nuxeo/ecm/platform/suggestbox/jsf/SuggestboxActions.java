@@ -21,9 +21,13 @@ import static org.jboss.seam.ScopeType.CONVERSATION;
 
 import java.io.Serializable;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+
+import javax.faces.event.AjaxBehaviorEvent;
+import javax.faces.event.ValueChangeEvent;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -47,9 +51,9 @@ import org.nuxeo.ecm.virtualnavigation.action.MultiNavTreeManager;
 import org.nuxeo.runtime.api.Framework;
 
 /**
- * Back seam component for the top right search box using the suggestion service
- * to help decode the user intent and minimize the number of clicks to find the
- * relevant information.
+ * Back seam component for the top right search box using the suggestion
+ * service to help decode the user intent and minimize the number of clicks to
+ * find the relevant information.
  */
 @Name("suggestboxActions")
 @Scope(CONVERSATION)
@@ -88,9 +92,15 @@ public class SuggestboxActions extends DocumentContextBoundActionBean implements
     protected Cached<List<Suggestion>> cachedSuggestions = new Cached<List<Suggestion>>(
             10000);
 
+
+
     protected String searchKeywords = "";
 
     protected String suggesterGroup;
+
+    protected String selectedSuggestionUid;
+
+    protected Map<String, Suggestion> lastReturnedSuggestions = null;
 
     public String getSearchKeywords() {
         return searchKeywords;
@@ -104,9 +114,22 @@ public class SuggestboxActions extends DocumentContextBoundActionBean implements
         return suggesterGroup;
     }
 
-    @RequestParameter
     public void setSuggesterGroup(String suggesterGroup) {
         this.suggesterGroup = suggesterGroup;
+    }
+
+    /**
+     * @since 5.9.4-JSF2
+     */
+    public String getSelectedSuggestionUid() {
+        return selectedSuggestionUid;
+    }
+
+    /**
+     * @since 5.9.4-JSF2
+     */
+    public void setSelectedSuggestionUid(String selectedSuggestionUid) {
+        this.selectedSuggestionUid = selectedSuggestionUid;
     }
 
     protected SuggestionContext getSuggestionContext() {
@@ -120,12 +143,11 @@ public class SuggestboxActions extends DocumentContextBoundActionBean implements
     /**
      * Callback for the ajax keypress event that triggers the generation of
      * context sensitive action suggestions. The most specific actions (e.g.
-     * direct navigation to a document with matching titles) should be suggested
-     * in the first position and more generic (traditional free-text search for
-     * documents) last.
+     * direct navigation to a document with matching titles) should be
+     * suggested in the first position and more generic (traditional free-text
+     * search for documents) last.
      */
-    public List<Suggestion> getSuggestions(Object input) {
-        if (cachedSuggestions.hasExpired(input, locale)) {
+    public List<Suggestion> getSuggestions(String input) {        if (cachedSuggestions.hasExpired(input, locale)) {
             SuggestionService service = Framework.getLocalService(SuggestionService.class);
             SuggestionContext ctx = getSuggestionContext();
             try {
@@ -133,17 +155,26 @@ public class SuggestboxActions extends DocumentContextBoundActionBean implements
                         input.toString(), ctx);
                 cachedSuggestions.cache(suggestions, input, locale);
             } catch (SuggestionException e) {
-                // log the exception rather than trying to display it since this
-                // method is called by ajax events when typing in the searchbox.
+                // log the exception rather than trying to display it since
+                // this method is called by ajax events when typing in the
+                // searchbox.
                 log.error(e, e);
                 return Collections.emptyList();
             }
         }
+        populateLastReturnedSuggestions();
         return cachedSuggestions.value;
     }
 
+    protected void populateLastReturnedSuggestions() {
+        lastReturnedSuggestions = new HashMap<String, Suggestion>();
+        for (Suggestion s : cachedSuggestions.value) {
+            lastReturnedSuggestions.put(s.uid, s);
+        }
+    }
+
     /**
-     * Callback for the ajax selection of an item in the rich:suggestionbox
+     * Callback for the ajax selection of an item in the rich:autocomplete
      * list.
      */
     public Object handleSelection(Suggestion selectedSuggestion)
@@ -153,6 +184,13 @@ public class SuggestboxActions extends DocumentContextBoundActionBean implements
         // reset the search field on explicit selection from the list.
         this.searchKeywords = "";
         return service.handleSelection(selectedSuggestion, ctx);
+    }
+
+    /**
+     * @since 5.9.4-JSF2
+     */
+    public Object handleCurrentSelection() throws SuggestionHandlingException {
+        return handleSelection(lastReturnedSuggestions.get(selectedSuggestionUid));
     }
 
     /**

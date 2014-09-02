@@ -7,5 +7,128 @@
   xmlns:cm="http://org.nuxeo.cm/" xmlns:rich="http://richfaces.org/rich"
   xmlns:nxl="http://nuxeo.org/nxforms/layout"
   style="display: inline; float: left">
+  <c:set var="minChars"
+    value="#{nxu:test(!empty widget.properties.minChars, widget.properties.minChars, '1')}" />
+  <c:set var="frequency"
+    value="#{nxu:test(!empty widget.properties.frequency, widget.properties.frequency, '0')}" />
+  <c:set var="requestDelay"
+    value="#{nxu:test(!empty widget.properties.requestDelay, widget.properties.requestDelay, '100')}" />
 
+  <a4j:region renderRegionOnly="true">
+    <h:panelGrid id="#{widget.id}_suggestbox_panel" columns="2">
+      <h:panelGroup>
+        <script type="text/javascript">
+          function focus_searchbox(event) {
+            event.preventDefault();
+            jQuery("input[id$=faceted_search_suggest_boxInput]")
+                .focus();
+            return false;
+          }
+          // bind the '/' key to focus the searchbox
+          jQuery(document).bind('keydown', '/', focus_searchbox);
+          // handle keyboard layouts such as French where the '/' char is
+          // accessed through the Shift modifier
+          jQuery(document)
+              .bind('keydown', 'Shift+/', focus_searchbox);
+
+          function simple_search() {
+            var box = jQuery(document
+                .getElementById('nxw_suggest_search_box_form:faceted_search_suggest_boxList'));
+            if (!box.is(':visible')) {
+              // use default navigation without waiting for the suggestions to display
+              document
+                  .getElementById(
+                      'nxw_suggest_search_box_form:simpleSearchSubmitButton')
+                  .click();
+            }
+            return false;
+          }
+
+          function showSearchLoading() {
+            jQuery("input[id$=faceted_search_suggest_boxInput]")
+                .css(
+                    'background',
+                    '#fff url('
+                        + window.nxContextPath
+                        + '/img/standart_waiter.gif) no-repeat 98% center');
+          }
+
+          function hideSearchLoading() {
+            jQuery("input[id$=faceted_search_suggest_boxInput]")
+                .css(
+                    'background',
+                    '#fff url('
+                        + window.nxContextPath
+                        + '/icons/search.png) no-repeat 98% center');
+          }
+          function processSelectEvent (target)
+          {
+            if (target.id != 'nxw_suggest_search_box_form:faceted_search_suggest_boxInput') {
+              updateVal(jQuery(target).closest('tr').find('input').val());
+            } else {
+              alert('ahaha');
+            }
+          }
+
+          jQuery(document).ready(function() {
+            jQuery(document.getElementById('nxw_suggest_search_box_form:faceted_search_suggest_boxInput')).keydown(function(event ) {
+              if ( event.which == 13 ) {
+                alert('tututu');
+               return simple_search();
+              }
+            });
+          });
+        </script>
+        <a4j:jsFunction name="presetSuggesterGroup">
+          <a4j:param name="name"
+            assignTo="#{suggestboxActions.suggesterGroup}"></a4j:param>
+        </a4j:jsFunction>
+       <a4j:jsFunction name="updateVal" action="#{suggestboxActions.handleCurrentSelection}">
+          <a4j:param name="param1"
+            assignTo="#{suggestboxActions.selectedSuggestionUid}"></a4j:param>
+        </a4j:jsFunction>
+
+        <c:if test="false">
+                When https://issues.jboss.org/browse/RF-13537 will be fixed,
+                we'll be able to call 'showSearchLoading();' in the 'onbegin'
+                of the rich:autocomplete attribute and
+        </c:if>
+        <rich:autocomplete mode="ajax" layout="table"
+          id="faceted_search_suggest_box" tokens=""
+          autocompleteMethod="#{suggestboxActions.getSuggestions}"
+          var="result" fetchValue="" width="300" height="500"
+          nothingLabel="#{messages['label.noSuggestions']}" requestDelay="20"
+          execute="@this" ignoreDupResponses="true" zindex="5000"
+          selectFirst="false" autofill="true"
+          inputClass="search_suggest_box directoryFilter suggestionBoxResult"
+          style="font-size:11px"
+          placeholder="#{messages['label.search.form.simple']}"
+          onfocus="presetSuggesterGroup('searchbox')"
+          value="#{suggestboxActions.searchKeywords}"
+          onselectitem="processSelectEvent(event.target);"
+          >
+          <span>
+          <rich:column>
+          <h:inputHidden id="suggId" value="#{result.uid}"/>
+          </rich:column>
+          <rich:column>
+            <h:graphicImage value="#{result.iconURL}" />
+          </rich:column>
+          <rich:column>
+            <h:outputText value="#{result.label}" styleClass="resultLabel" />
+            <h:outputText rendered="#{result.type == 'user'}"
+              value=" #{result.userId}" styleClass="detail" />
+          </rich:column>
+          </span>
+          <rich:placeholder value="#{messages['label.search.form.simple']}" />
+        </rich:autocomplete>
+        <h:commandButton
+          action="#{suggestboxActions.performKeywordsSearch('searchByKeywords', 'searchbox')}"
+          value="#{messages['command.search']}" styleClass="button"
+          id="simpleSearchSubmitButton" />
+      </h:panelGroup>
+
+    </h:panelGrid>
+
+  </a4j:region>
 </div>

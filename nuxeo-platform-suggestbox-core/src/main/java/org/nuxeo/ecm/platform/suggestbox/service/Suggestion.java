@@ -17,6 +17,7 @@
 package org.nuxeo.ecm.platform.suggestbox.service;
 
 import java.io.Serializable;
+import java.util.UUID;
 
 /**
  * Base class for building data transfer objects for results of requests to the
@@ -25,6 +26,8 @@ import java.io.Serializable;
  * @author ogrisel
  */
 public class Suggestion implements Serializable {
+
+    public final String uid = UUID.randomUUID().toString();
 
     public static final String DATE_FORMAT_PATTERN = "yyyy-MM-dd";
 
@@ -73,6 +76,13 @@ public class Suggestion implements Serializable {
 
     public String getDescription() {
         return description;
+    }
+
+    /**
+     * @since 5.9.4-JSF2
+     */
+    public String getUid() {
+        return uid;
     }
 
     public Suggestion withDescription(String description) {
